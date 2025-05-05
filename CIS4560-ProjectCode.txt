@@ -1,0 +1,52 @@
+$ wget -O stations_info_tx_v31.0e.txt 
+https://knmi-ecad-assets-prd.s3.amazonaws.com/ensembles/data/stations_info_tx_v31.0e.txt
+
+hdfs dfs -mkdir Stations
+hdfs dfs -mkdir Stations/stations_info/
+
+hdfs dfs -put stations_info_tx_v31.0e.txt Stations/stations_info/
+hdfs dfs -ls Stations/stations_info/
+
+DROP TABLE IF EXISTS max_temp_data;
+CREATE EXTERNAL TABLE IF NOT EXISTS max_temp_data(station_id STRING,
+station_name STRING, 
+country STRING,
+max_temperature STRING,
+latitude DOUBLE,
+longitude DOUBLE,
+elevation DOUBLE,
+start_date STRING,
+end_date STRING)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '|'
+STORED AS TEXTFILE LOCATION '/user/kalilai2/Stations/stations_info/'
+TBLPROPERTIES ("skip.header.line.count"="1");
+
+SELECT * FROM max_temp_data LIMIT 5;
+
+SELECT country, AVG(elevation) AS avg_elevation
+FROM max_temp_data
+GROUP BY country
+ORDER BY avg_elevation DESC
+LIMIT 10;
+
+SELECT country, COUNT(*) AS num_stations
+FROM max_temp_data
+GROUP BY country
+ORDER BY num_stations DESC
+LIMIT 5;
+
+SELECT station_id, country, elevation
+FROM max_temp_data
+ORDER BY elevation DESC
+LIMIT 5;
+
+INSERT OVERWRITE DIRECTORY '/user/kalilai2/max_temp_export/'
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY '|'
+SELECT * FROM max_temp_data;
+
+hdfs dfs -ls /user/your_user/max_temp_export/
+
+hdfs dfs -copyToLocal /user/your_user/max_temp_export/000000_0 max_temp_data.csv
+
+$ scp your_user@your_ip_address:/home/your_local_machine/max_temp_data.csv ~/Downloads/
